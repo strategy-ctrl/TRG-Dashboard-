@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<!-- TRG Demo Booking Dashboard v2 — James/John dual-role, dark theme, localStorage -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRG — Demo Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Tokens ──────────────────────────────────────────────── */
+    :root {
+      --bg:       #0D1117;
+      --card:     #161B27;
+      --card2:    #1C2235;
+      --border:   rgba(255,255,255,.07);
+      --border2:  rgba(255,255,255,.13);
+      --accent:   #E94560;
+      --text:     #E6EDF3;
+      --muted:    #7D8590;
+      --blue:     #388BFD;
+      --green:    #3FB950;
+      --amber:    #D29922;
+      --red:      #F85149;
+      --gold:     #F0A500;
+      --r: 12px;
+      --shadow: 0 4px 28px rgba(0,0,0,.45);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+    h1,h2,h3,.syne { font-family: 'Syne', sans-serif; }
+
+    /* ── Scrollbar ───────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    header {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(13,17,23,.93);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 11px 20px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px; font-weight: 800; letter-spacing: .8px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .logo em { color: var(--accent); font-style: normal; }
+
+    /* View toggle */
+    .view-toggle {
+      display: flex; background: rgba(255,255,255,.06);
+      border-radius: 9px; padding: 3px; gap: 3px; flex-shrink: 0;
+    }
+    .vbtn {
+      font-family: 'Syne', sans-serif;
+      font-size: 11px; font-weight: 700; letter-spacing: .8px;
+      padding: 6px 14px; border: none; border-radius: 6px;
+      cursor: pointer; transition: all .2s; background: transparent; color: var(--muted);
+    }
+    .vbtn.active { background: var(--accent); color: #fff; }
+    .vbtn:not(.active):hover { color: var(--text); }
+
+    /* Week nav */
+    .week-nav {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      border-radius: 8px; padding: 5px 10px;
+    }
+    .week-nav button {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1;
+      transition: color .15s;
+    }
+    .week-nav button:hover { color: var(--text); }
+    #weekLabel { font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .now-badge {
+      font-size: 9px; font-weight: 800; background: var(--accent);
+      color: #fff; padding: 1px 5px; border-radius: 8px; letter-spacing: .3px;
+    }
+
+    .hdr-right { display: flex; align-items: center; gap: 7px; margin-left: auto; flex-wrap: wrap; }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 14px; border-radius: 8px; border: none;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+      font-size: 12px; font-weight: 600; transition: all .2s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.12); }
+    .btn-ghost {
+      background: rgba(255,255,255,.07); border: 1px solid var(--border); color: var(--text);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,.13); }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
+    .btn-gold { background: var(--gold); color: #000; font-weight: 700; }
+    .btn-gold:hover { filter: brightness(1.1); }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    main { max-width: 1440px; margin: 0 auto; padding: 18px 16px 100px; }
+
+    /* ── Glass cards ─────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+      position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.025) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .card-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+    }
+    .sec-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.2px; color: var(--muted);
+    }
+
+    /* ── James Scorecard ─────────────────────────────────────── */
+    .james-sc {
+      display: grid; grid-template-columns: 2fr 1fr 1fr;
+      gap: 14px; margin-bottom: 14px; align-items: stretch;
+    }
+    .sc-main {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 22px; box-shadow: var(--shadow);
+      position: relative; overflow: hidden;
+    }
+    .sc-main::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.025) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .big-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 80px; font-weight: 800; line-height: 1;
+      transition: color .4s;
+    }
+    .big-denom { font-size: 24px; color: var(--muted); font-weight: 400; }
+    .big-sub   { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+    .prog-wrap { margin-top: 14px; }
+    .prog-track { height: 9px; background: rgba(255,255,255,.08); border-radius: 5px; overflow: hidden; }
+    .prog-fill  { height: 100%; border-radius: 5px; transition: width .6s ease, background-color .4s ease; }
+    .prog-meta  { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+    .sc-side {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 18px; box-shadow: var(--shadow);
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; text-align: center;
+    }
+    .sc-side-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 46px; font-weight: 800; line-height: 1;
+    }
+    .sc-side-lbl { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+
+    /* ── Stat tiles ──────────────────────────────────────────── */
+    .tiles {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr));
+      gap: 10px; margin-bottom: 14px;
+    }
+    .tile {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 12px; text-align: center;
+    }
+    .tile-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 30px; font-weight: 800; line-height: 1;
+    }
+    .tile-lbl {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .6px; color: var(--muted); margin-top: 4px;
+    }
+
+    /* ── Charts ──────────────────────────────────────────────── */
+    .charts-row { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; margin-bottom: 14px; }
+    .chart-wrap { position: relative; height: 210px; }
+
+    /* ── Tables ──────────────────────────────────────────────── */
+    .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      background: rgba(255,255,255,.04); color: var(--muted);
+      padding: 9px 12px; text-align: left;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      white-space: nowrap; border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,.04); transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+    tbody td { padding: 11px 12px; vertical-align: middle; }
+
+    /* Row tints */
+    tr.r-confirmed { background: rgba(63,185,80,.06); }
+    tr.r-confirmed:hover { background: rgba(63,185,80,.1); }
+    tr.r-sold      { background: rgba(240,165,0,.07); }
+    tr.r-sold:hover { background: rgba(240,165,0,.11); }
+    tr.r-no-show   { background: rgba(248,81,73,.07); }
+    tr.r-no-show:hover { background: rgba(248,81,73,.11); }
+    tr.r-cancelled { opacity: .45; }
+    tr.r-completed { background: rgba(255,255,255,.025); }
+
+    /* Status badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 3px 9px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+      white-space: nowrap;
+    }
+    .b-booked    { background: rgba(56,139,253,.18); color: #79C0FF; }
+    .b-confirmed { background: rgba(63,185,80,.18); color: #56D364; }
+    .b-completed { background: rgba(255,255,255,.08); color: var(--muted); }
+    .b-no-show   { background: rgba(248,81,73,.2); color: #FF7B72; }
+    .b-sold      { background: rgba(240,165,0,.22); color: #F0A500; }
+    .b-cancelled { background: rgba(255,255,255,.05); color: #484F58; }
+
+    /* John's status dropdown */
+    .status-sel {
+      appearance: none; -webkit-appearance: none;
+      background: rgba(255,255,255,.08) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%237D8590'/%3E%3C/svg%3E") no-repeat right 8px center;
+      border: 1px solid var(--border2); border-radius: 7px;
+      padding: 7px 28px 7px 10px; min-width: 150px;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: var(--text);
+      cursor: pointer; outline: none; transition: border-color .15s;
+    }
+    .status-sel:hover { border-color: var(--accent); }
+    .status-sel:focus { border-color: var(--accent); }
+    .status-sel option { background: #1C2235; }
+
+    /* Cells */
+    .cell-dt { white-space: nowrap; }
+    .cell-dt .d { font-weight: 600; }
+    .cell-dt .t { font-size: 11px; color: var(--muted); display: block; margin-top: 1px; }
+    .cell-notes { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+
+    /* ── Sold board ──────────────────────────────────────────── */
+    .sold-banner {
+      background: rgba(240,165,0,.1); border: 1px solid rgba(240,165,0,.25);
+      border-radius: 10px; padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
+    }
+    .sold-banner-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--gold); }
+    .sold-banner-val { font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800; color: var(--gold); }
+    .deal-inp {
+      background: rgba(255,255,255,.07); border: 1px solid var(--border);
+      border-radius: 6px; padding: 5px 8px;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text);
+      width: 110px; outline: none; transition: border-color .15s;
+    }
+    .deal-inp:focus { border-color: var(--gold); }
+
+    /* ── Toggle buttons (noshow tracker) ─────────────────────── */
+    .tog {
+      background: rgba(255,255,255,.07); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 10px;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      cursor: pointer; transition: all .2s; white-space: nowrap;
+    }
+    .tog:hover { border-color: var(--accent); color: var(--text); }
+    .tog.on { background: rgba(63,185,80,.18); border-color: rgba(63,185,80,.4); color: #56D364; }
+    .rebook-done { font-size: 12px; font-weight: 600; color: var(--green); }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    .empty { text-align: center; padding: 28px 16px; color: var(--muted); font-size: 13px; }
+    .empty strong { display: block; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+
+    /* ── Toast ───────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(10px);
+      background: var(--card2); border: 1px solid var(--border2);
+      border-radius: 10px; padding: 10px 18px;
+      font-size: 13px; font-weight: 500; color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none;
+      z-index: 1000; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Modals ──────────────────────────────────────────────── */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.65); z-index: 500;
+      align-items: center; justify-content: center; padding: 16px;
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: #1C2235; border: 1px solid var(--border2);
+      border-radius: 16px; padding: 24px;
+      width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto;
+      box-shadow: 0 28px 80px rgba(0,0,0,.65); position: relative;
+      animation: modalIn .2s ease;
+    }
+    @keyframes modalIn { from { opacity:0; transform:scale(.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    .modal h2 { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 18px; }
+    .modal-close {
+      position: absolute; top: 14px; right: 14px;
+      background: none; border: none; color: var(--muted);
+      font-size: 20px; cursor: pointer; line-height: 1; transition: color .15s;
+    }
+    .modal-close:hover { color: var(--text); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .fg { display: flex; flex-direction: column; gap: 4px; }
+    .fg.full { grid-column: 1 / -1; }
+    .fg label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); }
+    .fg input, .fg select, .fg textarea {
+      background: rgba(255,255,255,.07); border: 1px solid var(--border2);
+      border-radius: 8px; padding: 9px 11px;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); outline: none;
+      transition: border-color .15s;
+    }
+    .fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--accent); }
+    .fg textarea { resize: vertical; min-height: 64px; }
+    .fg select option, .fg select { background: #1C2235; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+    /* ── FAB ─────────────────────────────────────────────────── */
+    .fab {
+      position: fixed; bottom: 22px; right: 22px;
+      width: 54px; height: 54px; border-radius: 50%;
+      background: var(--accent); color: #fff; font-size: 26px;
+      border: none; cursor: pointer; z-index: 300;
+      box-shadow: 0 4px 20px rgba(233,69,96,.55);
+      display: none; align-items: center; justify-content: center;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(233,69,96,.7); }
+    .fab.vis { display: flex; }
+
+    /* ── Animations ──────────────────────────────────────────── */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeUp .3s ease; }
+
+    /* ── Utility ─────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .accent { color: var(--accent); }
+    .green  { color: var(--green); }
+    .amber  { color: var(--amber); }
+    .red    { color: var(--red); }
+    .gold   { color: var(--gold); }
+    .muted  { color: var(--muted); }
+    .bold   { font-weight: 700; }
+    .strike { text-decoration: line-through; }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .charts-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .james-sc { grid-template-columns: 1fr 1fr; }
+      .james-sc .sc-main { grid-column: 1 / -1; }
+      .big-num { font-size: 60px; }
+      .john-tiles { grid-template-columns: repeat(3, 1fr) !important; }
+    }
+    @media (max-width: 640px) {
+      .tiles { grid-template-columns: repeat(3, 1fr); }
+      .fab.vis { display: flex; }
+      .hide-mob { display: none !important; }
+      .form-grid { grid-template-columns: 1fr; }
+      .fg.full { grid-column: auto; }
+      .john-tiles { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+    @media (max-width: 420px) {
+      .james-sc { grid-template-columns: 1fr; }
+      .big-num { font-size: 52px; }
+      .tiles { grid-template-columns: 1fr 1fr; }
+      .john-tiles { grid-template-columns: 1fr 1fr !important; }
+    }
+    @media print {
+      header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .fab, .btn-primary, .overlay { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════ HEADER ═════════════════════════════════════ -->
+<header>
+  <div class="logo">TRG &nbsp;<em>DEMO TRACKER</em></div>
+
+  <div class="view-toggle">
+    <button class="vbtn active" id="btn-james" onclick="setView('james')">📞&nbsp; JAMES</button>
+    <button class="vbtn"        id="btn-john"  onclick="setView('john')">🎯&nbsp; JOHN</button>
+  </div>
+
+  <div class="hdr-right">
+    <div class="week-nav">
+      <button onclick="shiftWeek(-1)" title="Prev week">&#8592;</button>
+      <span id="weekLabel">—</span>
+      <span class="now-badge" id="nowBadge" style="display:none">NOW</span>
+      <button onclick="shiftWeek(1)"  title="Next week">&#8594;</button>
+    </div>
+    <button class="btn btn-ghost btn-sm hide-mob" onclick="exportCSV()">&#8681; CSV</button>
+    <button class="btn btn-primary btn-sm hide-mob" id="hdrAddBtn" onclick="openAddModal()">+ Add Demo</button>
+  </div>
+</header>
+
+<!-- ════════════════════════════ MAIN ════════════════════════════════════════ -->
+<main>
+
+  <!-- ─────────────────────── JAMES VIEW ──────────────────────── -->
+  <div id="view-james" class="fade-in">
+
+    <!-- Scorecard -->
+    <div class="james-sc">
+      <div class="sc-main">
+        <div class="sec-label" style="margin-bottom:8px">Weekly Target — 15 Demos</div>
+        <div>
+          <span class="big-num" id="jsBig">0</span>
+          <span class="big-denom"> / 15</span>
+        </div>
+        <div class="big-sub">demos booked this week</div>
+        <div class="prog-wrap">
+          <div class="prog-track">
+            <div class="prog-fill" id="jsBar" style="width:0%"></div>
+          </div>
+          <div class="prog-meta">
+            <span id="jsPct">0% to target</span>
+            <span id="jsRemain"></span>
+          </div>
+        </div>
+      </div>
+      <div class="sc-side">
+        <div class="sc-side-num" id="jsDays">—</div>
+        <div class="sc-side-lbl">Business Days<br>Remaining</div>
+      </div>
+      <div class="sc-side">
+        <div class="sc-side-num" id="jsPerDay">—</div>
+        <div class="sc-side-lbl">Bookings/Day<br>Still Needed</div>
+      </div>
+    </div>
+
+    <!-- Source tiles -->
+    <div class="tiles">
+      <div class="tile"><div class="tile-val" id="jT">0</div><div class="tile-lbl">Total Booked</div></div>
+      <div class="tile"><div class="tile-val" id="jCC">0</div><div class="tile-lbl">Cold Call</div></div>
+      <div class="tile"><div class="tile-val" id="jMA">0</div><div class="tile-lbl">Meta Ad</div></div>
+      <div class="tile"><div class="tile-val" id="jRef">0</div><div class="tile-lbl">Referral</div></div>
+      <div class="tile"><div class="tile-val red" id="jNS">0</div><div class="tile-lbl">No Shows</div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="card">
+        <div class="sec-label" style="margin-bottom:10px">Daily Bookings — Target 3/day</div>
+        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="sec-label" style="margin-bottom:10px">Source Breakdown</div>
+        <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Booking log -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="sec-label">Demo Booking Log — Read Only Status</span>
+        <div style="display:flex;gap:7px">
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">&#8681; CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Demo</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Date Added</th><th>Lead Name</th><th>Business</th>
+            <th>Phone</th><th>Source</th><th>Demo Date</th>
+            <th>Time</th><th>Status</th><th>Notes</th>
+          </tr></thead>
+          <tbody id="jLogBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- No-show tracker -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="sec-label">No-Show Tracker</span>
+        <span class="muted" style="font-size:11px">Re-book no-shows to keep pipeline alive</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Lead Name</th><th>Business</th><th>Original Demo</th>
+            <th>No-Show Date</th><th>Follow-Up Sent</th><th>Re-Booked</th>
+          </tr></thead>
+          <tbody id="nsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /james -->
+
+  <!-- ─────────────────────── JOHN VIEW ───────────────────────── -->
+  <div id="view-john" class="hidden fade-in">
+
+    <!-- John scorecard -->
+    <div class="tiles john-tiles" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
+      <div class="tile"><div class="tile-val" id="jnQ">0</div><div class="tile-lbl">In Queue</div></div>
+      <div class="tile"><div class="tile-val green" id="jnC">0</div><div class="tile-lbl">Confirmed</div></div>
+      <div class="tile"><div class="tile-val" id="jnSR">—</div><div class="tile-lbl">Show Rate</div></div>
+      <div class="tile"><div class="tile-val gold" id="jnSold">0</div><div class="tile-lbl">Sold This Week</div></div>
+      <div class="tile"><div class="tile-val accent" id="jnConv">—</div><div class="tile-lbl">Conversion Rate</div></div>
+    </div>
+
+    <!-- Demo queue -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="sec-label">Active Demo Queue</span>
+        <span class="muted" style="font-size:11px">Update status as demos run — sorted by demo date</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Demo Date</th><th>Time</th><th>Lead Name</th><th>Business</th>
+            <th>Phone</th><th>Source</th><th>Notes</th><th>Update Status</th>
+          </tr></thead>
+          <tbody id="jnQBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sold board -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="sec-label">🏆 Sold Board</span>
+        <span class="muted" style="font-size:11px">Enter deal value to log pipeline</span>
+      </div>
+      <div class="sold-banner">
+        <div>
+          <div class="sold-banner-lbl">Total Pipeline Value — This Week</div>
+        </div>
+        <div class="sold-banner-val" id="soldTotal">$0</div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Lead Name</th><th>Business</th><th>Phone</th>
+            <th>Demo Date</th><th>Deal Value (AUD)</th><th>Notes</th>
+          </tr></thead>
+          <tbody id="soldBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Completed / cancelled -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="sec-label">Completed &amp; Cancelled</span>
+        <span class="muted" style="font-size:11px">Read only</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Lead Name</th><th>Business</th><th>Demo Date</th><th>Status</th><th>Notes</th>
+          </tr></thead>
+          <tbody id="doneBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /john -->
+
+</main>
+
+<!-- FAB -->
+<button class="fab" id="fab" onclick="openAddModal()" title="Add New Demo">+</button>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ════════════════════════════ ADD DEMO MODAL ══════════════════════════════ -->
+<div class="overlay" id="modal-add">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-add')">&times;</button>
+    <h2>Add New Demo</h2>
+    <div class="form-grid">
+      <div class="fg">
+        <label>Date Added</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="fg">
+        <label>Lead Name *</label>
+        <input type="text" id="f-lead" placeholder="e.g. Michael Chan">
+      </div>
+      <div class="fg">
+        <label>Business Name</label>
+        <input type="text" id="f-biz" placeholder="e.g. Chan Constructions">
+      </div>
+      <div class="fg">
+        <label>Phone</label>
+        <input type="tel" id="f-phone" placeholder="04xx xxx xxx">
+      </div>
+      <div class="fg">
+        <label>Source</label>
+        <select id="f-src">
+          <option>Cold Call</option>
+          <option>Meta Ad</option>
+          <option>Referral</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Demo Date</label>
+        <input type="date" id="f-ddate">
+      </div>
+      <div class="fg">
+        <label>Demo Time</label>
+        <input type="time" id="f-dtime">
+      </div>
+      <div class="fg full">
+        <label>Notes</label>
+        <textarea id="f-notes" placeholder="Budget, motivation, key context..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDemo()">Save Demo &#8594;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ RE-BOOK MODAL ══════════════════════════════ -->
+<div class="overlay" id="modal-rebook">
+  <div class="modal" style="max-width:380px">
+    <button class="modal-close" onclick="closeModal('modal-rebook')">&times;</button>
+    <h2>Re-Book Demo</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:16px">
+      Enter the new date and time. A fresh booking will be created and assigned to John.
+    </p>
+    <input type="hidden" id="rb-id">
+    <div class="fg" style="margin-bottom:12px">
+      <label>New Demo Date *</label>
+      <input type="date" id="rb-date">
+    </div>
+    <div class="fg">
+      <label>New Demo Time</label>
+      <input type="time" id="rb-time">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-rebook')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmRebook()">Create Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ SOLD MODAL ══════════════════════════════════ -->
+<div class="overlay" id="modal-sold">
+  <div class="modal" style="max-width:360px">
+    <button class="modal-close" onclick="closeModal('modal-sold')">&times;</button>
+    <h2 class="gold">🏆 Mark as Sold</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:16px">
+      Enter the deal value to record this win on the Sold Board.
+    </p>
+    <input type="hidden" id="sold-id">
+    <div class="fg">
+      <label>Deal Value (AUD) *</label>
+      <input type="number" id="sold-val" placeholder="e.g. 18500" min="0" step="500">
+    </div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-ghost" onclick="closeModal('modal-sold')">Cancel</button>
+      <button class="btn btn-gold" onclick="confirmSold()">Confirm Sale 🎉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════ SCRIPTS ════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script>
+/* ══════════════════════════════ CONSTANTS ══════════════════════════════════ */
+const TARGET_WEEK  = 15;
+const TARGET_DAY   = 3;
+const SOURCES      = ['Cold Call','Meta Ad','Referral','Other'];
+const JOHN_STATS   = ['Confirmed','Completed','No Show','Sold','Cancelled'];
+
+/* ══════════════════════════════ STATE ══════════════════════════════════════ */
+let currentView = 'james';
+let weekOffset  = 0;
+let demos       = [];
+let barChart    = null;
+let pieChart    = null;
+
+/* ══════════════════════════════ PERSISTENCE ════════════════════════════════ */
+function loadData() {
+  const raw = localStorage.getItem('trg-v2');
+  if (raw) { try { demos = JSON.parse(raw); } catch { demos = []; } }
+  else { demos = seedData(); saveData(); }
+}
+function saveData() { localStorage.setItem('trg-v2', JSON.stringify(demos)); }
+
+/* ══════════════════════════════ SEED DATA ══════════════════════════════════ */
+function seedData() {
+  const mon = weekMonday(0);
+  const wd  = (n) => { const d = new Date(mon); d.setDate(d.getDate() + n); return toDateStr(d); };
+  const ts  = (n, h, m) => { const d = new Date(mon); d.setDate(d.getDate()+n); d.setHours(h,m,0,0); return d.toISOString(); };
+
+  return [
+    {
+      id: uid(), dateAdded: wd(0), lead: 'Michael Chan', business: 'Chan Constructions',
+      phone: '0412 345 678', source: 'Cold Call', demoDate: wd(2), demoTime: '10:00',
+      notes: 'Kitchen reno — warm lead, budget ~$95k', status: 'Booked', assignedTo: 'John',
+      dealValue: null, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
+      history: [{ s: 'Booked', ts: ts(0,9,15) }],
+    },
+    {
+      id: uid(), dateAdded: wd(0), lead: 'Sarah Nguyen', business: 'Nguyen Builds',
+      phone: '0435 987 654', source: 'Meta Ad', demoDate: wd(3), demoTime: '14:00',
+      notes: 'Granny flat ad — $120k budget confirmed', status: 'Confirmed', assignedTo: 'John',
+      dealValue: null, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
+      history: [{ s: 'Booked', ts: ts(0,11,0) }, { s: 'Confirmed', ts: ts(1,9,0) }],
+    },
+    {
+      id: uid(), dateAdded: wd(1), lead: 'Brad Mitchell', business: 'Mitchell Renovations',
+      phone: '0421 111 222', source: 'Referral', demoDate: wd(1), demoTime: '11:00',
+      notes: 'Referral from LFC — ready to go', status: 'Sold', assignedTo: 'John',
+      dealValue: 18500, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
+      history: [{ s: 'Booked', ts: ts(1,8,0) }, { s: 'Confirmed', ts: ts(1,9,30) }, { s: 'Sold', ts: ts(1,12,45) }],
+    },
+    {
+      id: uid(), dateAdded: wd(1), lead: 'Tony Esposito', business: 'Esposito Building Group',
+      phone: '0499 333 444', source: 'Cold Call', demoDate: wd(0), demoTime: '15:30',
+      notes: 'Commercial fit-out — may need follow-up', status: 'No Show', assignedTo: 'John',
+      dealValue: null, followUpSent: true, reBooked: false, rebookedId: null, noShowDate: wd(0),
+      history: [{ s: 'Booked', ts: ts(1,14,0) }, { s: 'No Show', ts: ts(1,16,0) }],
+    },
+    {
+      id: uid(), dateAdded: wd(2), lead: 'Karen Wells', business: 'Wells & Sons Building',
+      phone: '0455 666 777', source: 'Meta Ad', demoDate: wd(2), demoTime: '09:00',
+      notes: 'Bathroom reno + extension, very motivated', status: 'Completed', assignedTo: 'John',
+      dealValue: null, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
+      history: [{ s: 'Booked', ts: ts(2,9,0) }, { s: 'Completed', ts: ts(2,10,15) }],
+    },
+    {
+      id: uid(), dateAdded: wd(2), lead: 'David Lam', business: 'Lam Custom Homes',
+      phone: '0411 222 333', source: 'Cold Call', demoDate: wd(4), demoTime: '13:00',
+      notes: 'New 4BR home build — large project potential', status: 'Booked', assignedTo: 'John',
+      dealValue: null, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
+      history: [{ s: 'Booked', ts: ts(2,10,30) }],
+    },
+  ];
+}
+
+/* ══════════════════════════════ DATE UTILS ══════════════════════════════════ */
+function weekMonday(off) {
+  const d   = new Date();
+  const dow = d.getDay();
+  const adj = dow === 0 ? -6 : 1 - dow;
+  d.setDate(d.getDate() + adj + off * 7);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function weekRange(off) {
+  const mon = weekMonday(off);
+  const fri = new Date(mon);
+  fri.setDate(fri.getDate() + 4);
+  fri.setHours(23,59,59,999);
+  return { mon, fri };
+}
+function inWeek(ds, off) {
+  if (!ds) return false;
+  const { mon, fri } = weekRange(off);
+  const [y,m,d] = ds.split('-').map(Number);
+  const dt = new Date(y, m-1, d, 12, 0, 0);
+  return dt >= mon && dt <= fri;
+}
+function toDateStr(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function todayStr() { return toDateStr(new Date()); }
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtD(s) {
+  if (!s) return '—';
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+function fmtT(t) {
+  if (!t) return '—';
+  const [hh, mm] = t.split(':');
+  const h = parseInt(hh);
+  return `${h % 12 || 12}:${mm} ${h >= 12 ? 'pm' : 'am'}`;
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function nowISO() { return new Date().toISOString(); }
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function rowCls(status) {
+  return 'r-' + status.toLowerCase().replace(/\s+/g,'-');
+}
+
+/* ══════════════════════════════ MAIN RENDER ════════════════════════════════ */
+function render() {
+  const wd = demos.filter(d => inWeek(d.dateAdded, weekOffset));
+  updateHeader();
+  if (currentView === 'james') {
+    renderJames(wd);
+  } else {
+    if (barChart) { barChart.destroy(); barChart = null; }
+    if (pieChart) { pieChart.destroy(); pieChart = null; }
+    renderJohn(wd);
+  }
+}
+
+function updateHeader() {
+  const { mon, fri } = weekRange(weekOffset);
+  const f = d => `${d.getDate()} ${d.toLocaleString('en-AU', { month:'short' })}`;
+  document.getElementById('weekLabel').textContent = `${f(mon)} – ${f(fri)} ${mon.getFullYear()}`;
+  document.getElementById('nowBadge').style.display = weekOffset === 0 ? 'inline' : 'none';
+}
+
+/* ════════════════════════════ JAMES VIEW ════════════════════════════════════ */
+function renderJames(wd) {
+  renderJamesScorecard(wd);
+  renderJamesTiles(wd);
+  renderCharts(wd);
+  renderBookingLog(wd);
+  renderNoShowTracker(wd);
+}
+
+function renderJamesScorecard(wd) {
+  const n   = wd.length;
+  const pct = Math.min(100, Math.round((n / TARGET_WEEK) * 100));
+  const col = pct < 50 ? '#E94560' : pct < 80 ? '#D29922' : '#3FB950';
+
+  countUp(document.getElementById('jsBig'), n);
+  document.getElementById('jsBig').style.color = col;
+  document.getElementById('jsBar').style.width           = pct + '%';
+  document.getElementById('jsBar').style.backgroundColor = col;
+  document.getElementById('jsPct').textContent    = `${pct}% to target`;
+  document.getElementById('jsRemain').textContent = n >= TARGET_WEEK
+    ? '🎯 Target hit!'
+    : `${TARGET_WEEK - n} more to go`;
+
+  // Days remaining
+  let daysLeft = 0;
+  if (weekOffset === 0) {
+    const dow = new Date().getDay();
+    daysLeft  = (dow >= 1 && dow <= 5) ? 5 - dow + 1 : 0;
+  } else if (weekOffset > 0) {
+    daysLeft = 5;
+  }
+
+  const dEl = document.getElementById('jsDays');
+  dEl.textContent = weekOffset < 0 ? '—' : String(daysLeft);
+  dEl.style.color = (weekOffset === 0 && daysLeft <= 1) ? '#E94560' : '#E6EDF3';
+
+  const rEl = document.getElementById('jsPerDay');
+  if (daysLeft > 0 && n < TARGET_WEEK) {
+    const needed = Math.ceil((TARGET_WEEK - n) / daysLeft);
+    rEl.textContent = String(needed);
+    rEl.style.color = needed > TARGET_DAY ? '#E94560' : '#3FB950';
+  } else if (n >= TARGET_WEEK) {
+    rEl.textContent = '✓';
+    rEl.style.color = '#3FB950';
+  } else {
+    rEl.textContent = '—';
+    rEl.style.color = '#E6EDF3';
+  }
+}
+
+function renderJamesTiles(wd) {
+  countUp(document.getElementById('jT'),   wd.length);
+  countUp(document.getElementById('jCC'),  wd.filter(d => d.source === 'Cold Call').length);
+  countUp(document.getElementById('jMA'),  wd.filter(d => d.source === 'Meta Ad').length);
+  countUp(document.getElementById('jRef'), wd.filter(d => d.source === 'Referral').length);
+  countUp(document.getElementById('jNS'),  wd.filter(d => d.status === 'No Show').length);
+}
+
+function renderBookingLog(wd) {
+  const tbody = document.getElementById('jLogBody');
+  if (!wd.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><strong>No demos this week</strong>Click + Add Demo to get started.</div></td></tr>`;
+    return;
+  }
+  const sorted = [...wd].sort((a,b) => a.dateAdded > b.dateAdded ? 1 : -1);
+  tbody.innerHTML = sorted.map(d => `
+    <tr class="${rowCls(d.status)}">
+      <td class="muted">${fmtD(d.dateAdded)}</td>
+      <td class="bold">${esc(d.lead) || '—'}</td>
+      <td>${esc(d.business) || '—'}</td>
+      <td class="muted" style="white-space:nowrap">${esc(d.phone) || '—'}</td>
+      <td>${esc(d.source)}</td>
+      <td class="cell-dt"><span class="d">${fmtD(d.demoDate)}</span></td>
+      <td><span class="muted">${fmtT(d.demoTime)}</span></td>
+      <td>${badgeHtml(d.status)}</td>
+      <td class="cell-notes" title="${esc(d.notes)}">${esc(d.notes) || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function renderNoShowTracker(wd) {
+  const tbody = document.getElementById('nsBody');
+  const ns    = wd.filter(d => d.status === 'No Show');
+  if (!ns.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><strong>No no-shows this week 🎉</strong>Great work!</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = ns.map(d => `
+    <tr class="r-no-show">
+      <td class="bold">${esc(d.lead)}</td>
+      <td>${esc(d.business) || '—'}</td>
+      <td class="cell-dt">
+        <span class="d">${fmtD(d.demoDate)}</span>
+        <span class="t">${fmtT(d.demoTime)}</span>
+      </td>
+      <td class="muted">${fmtD(d.noShowDate)}</td>
+      <td>
+        <button class="tog ${d.followUpSent ? 'on' : ''}" onclick="toggleFollowUp('${d.id}')">
+          ${d.followUpSent ? '✓ Sent' : 'Not sent'}
+        </button>
+      </td>
+      <td>
+        ${d.reBooked
+          ? `<span class="rebook-done">✓ Re-booked</span>`
+          : `<button class="tog" onclick="openRebookModal('${d.id}')">Re-Book</button>`}
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ════════════════════════════ JOHN VIEW ═════════════════════════════════════ */
+function renderJohn(wd) {
+  renderJohnScorecard(wd);
+  renderDemoQueue(wd);
+  renderSoldBoard(wd);
+  renderCompleted(wd);
+}
+
+function renderJohnScorecard(wd) {
+  const queue     = wd.filter(d => ['Booked','Confirmed'].includes(d.status)).length;
+  const confirmed = wd.filter(d => d.status === 'Confirmed').length;
+  const shown     = wd.filter(d => ['Completed','Sold'].includes(d.status)).length;
+  const noShow    = wd.filter(d => d.status === 'No Show').length;
+  const appeared  = shown + noShow;
+  const sold      = wd.filter(d => d.status === 'Sold').length;
+  const showRate  = appeared > 0 ? Math.round((shown / appeared) * 100) : null;
+  const convRate  = appeared > 0 ? Math.round((sold  / appeared) * 100) : null;
+
+  countUp(document.getElementById('jnQ'),    queue);
+  countUp(document.getElementById('jnC'),    confirmed);
+  document.getElementById('jnSR').textContent   = showRate  !== null ? showRate  + '%' : '—';
+  countUp(document.getElementById('jnSold'), sold);
+  document.getElementById('jnConv').textContent = convRate  !== null ? convRate  + '%' : '—';
+}
+
+function renderDemoQueue(wd) {
+  const tbody = document.getElementById('jnQBody');
+  const q     = wd
+    .filter(d => ['Booked','Confirmed'].includes(d.status))
+    .sort((a,b) => {
+      const da = (a.demoDate || '9999') + 'T' + (a.demoTime || '00:00');
+      const db = (b.demoDate || '9999') + 'T' + (b.demoTime || '00:00');
+      return da > db ? 1 : -1;
+    });
+
+  if (!q.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><strong>Queue is clear ✓</strong>All demos have been actioned.</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = q.map(d => `
+    <tr class="${rowCls(d.status)}">
+      <td class="cell-dt"><span class="d">${fmtD(d.demoDate)}</span></td>
+      <td><span class="muted">${fmtT(d.demoTime)}</span></td>
+      <td class="bold">${esc(d.lead)}</td>
+      <td>${esc(d.business) || '—'}</td>
+      <td class="muted" style="white-space:nowrap">${esc(d.phone) || '—'}</td>
+      <td>${esc(d.source)}</td>
+      <td class="cell-notes" title="${esc(d.notes)}">${esc(d.notes) || '—'}</td>
+      <td>
+        <select class="status-sel" onchange="updateStatus('${d.id}',this.value,this)">
+          <option value="">— Update Status —</option>
+          ${JOHN_STATS.map(s => `<option value="${s}">${s}</option>`).join('')}
+        </select>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderSoldBoard(wd) {
+  const tbody = document.getElementById('soldBody');
+  const sold  = wd.filter(d => d.status === 'Sold')
+                  .sort((a,b) => {
+                    const la = a.history[a.history.length-1]?.ts || '';
+                    const lb = b.history[b.history.length-1]?.ts || '';
+                    return la > lb ? -1 : 1;
+                  });
+  const total = sold.reduce((sum, d) => sum + (d.dealValue || 0), 0);
+  document.getElementById('soldTotal').textContent = '$' + total.toLocaleString('en-AU');
+
+  if (!sold.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><strong>No sales yet this week</strong>Go close something 💪</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sold.map(d => `
+    <tr class="r-sold">
+      <td class="bold">${esc(d.lead)}</td>
+      <td>${esc(d.business) || '—'}</td>
+      <td class="muted" style="white-space:nowrap">${esc(d.phone) || '—'}</td>
+      <td>${fmtD(d.demoDate)}</td>
+      <td>
+        <input class="deal-inp" type="number" placeholder="$0" min="0" step="500"
+          value="${d.dealValue || ''}"
+          onchange="patchDealValue('${d.id}',this.value)">
+      </td>
+      <td class="cell-notes">${esc(d.notes) || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function renderCompleted(wd) {
+  const tbody = document.getElementById('doneBody');
+  const done  = wd.filter(d => ['Completed','Cancelled'].includes(d.status));
+  if (!done.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><strong>Nothing here yet</strong></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = done.map(d => `
+    <tr class="${rowCls(d.status)}">
+      <td class="${d.status === 'Cancelled' ? 'strike muted' : 'bold'}">${esc(d.lead)}</td>
+      <td class="${d.status === 'Cancelled' ? 'muted' : ''}">${esc(d.business) || '—'}</td>
+      <td>${fmtD(d.demoDate)}</td>
+      <td>${badgeHtml(d.status)}</td>
+      <td class="cell-notes">${esc(d.notes) || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+/* ════════════════════════════ CHARTS ════════════════════════════════════════ */
+function renderCharts(wd) {
+  // Bar — bookings per weekday
+  const counts = [0,0,0,0,0];
+  wd.forEach(d => {
+    if (!d.dateAdded) return;
+    const [y,m,day] = d.dateAdded.split('-').map(Number);
+    const dow = new Date(y, m-1, day, 12,0,0).getDay();
+    if (dow >= 1 && dow <= 5) counts[dow-1]++;
+  });
+
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
+    data: {
+      labels: ['Mon','Tue','Wed','Thu','Fri'],
+      datasets: [
+        {
+          type: 'bar', label: 'Demos Booked', data: counts,
+          backgroundColor: '#E94560', borderRadius: 6, borderSkipped: false, order: 2,
+        },
+        {
+          type: 'line', label: 'Target (3)', data: [3,3,3,3,3],
+          borderColor: 'rgba(255,255,255,.25)', borderWidth: 2,
+          borderDash: [5,3], pointRadius: 0, fill: false, tension: 0, order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color:'#7D8590', font:{size:10}, boxWidth:10 } } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { stepSize:1, color:'#7D8590', font:{size:10} },
+          grid: { color:'rgba(255,255,255,.05)' },
+          border: { color:'rgba(255,255,255,.05)' },
+        },
+        x: {
+          ticks: { color:'#7D8590', font:{size:10} },
+          grid: { display: false },
+          border: { color:'rgba(255,255,255,.05)' },
+        },
+      },
+    },
+  });
+
+  // Pie — source breakdown
+  const srcMap = {};
+  wd.forEach(d => { srcMap[d.source] = (srcMap[d.source] || 0) + 1; });
+  const lbls  = Object.keys(srcMap);
+  const vals  = Object.values(srcMap);
+  const cols  = ['#E94560','#388BFD','#3FB950','#D29922'];
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: lbls.length ? lbls : ['No data'],
+      datasets: [{
+        data:            lbls.length ? vals : [1],
+        backgroundColor: lbls.length ? cols.slice(0, lbls.length) : ['rgba(255,255,255,.08)'],
+        borderWidth: 3, borderColor: '#161B27',
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color:'#7D8590', font:{size:10}, boxWidth:10, padding:8 },
+        },
+      },
+    },
+  });
+}
+
+/* ════════════════════════════ ACTIONS ══════════════════════════════════════ */
+function updateStatus(id, newStatus, selectEl) {
+  if (!newStatus) return;
+  if (newStatus === 'Sold') {
+    // Reset the select, open modal instead
+    if (selectEl) selectEl.value = '';
+    document.getElementById('sold-id').value  = id;
+    document.getElementById('sold-val').value = '';
+    openModal('modal-sold');
+    return;
+  }
+
+  const demo = demos.find(d => d.id === id);
+  if (!demo) return;
+
+  demo.status = newStatus;
+  demo.history.push({ s: newStatus, ts: nowISO() });
+  if (newStatus === 'No Show') {
+    demo.noShowDate = todayStr();
+    showToast(`${demo.lead} moved to No-Show Tracker`);
+  } else {
+    showToast(`Status updated: ${newStatus}`);
+  }
+
+  saveData();
+  render();
+}
+
+function confirmSold() {
+  const id  = document.getElementById('sold-id').value;
+  const val = parseFloat(document.getElementById('sold-val').value) || 0;
+  const demo = demos.find(d => d.id === id);
+  if (!demo) return;
+
+  demo.status    = 'Sold';
+  demo.dealValue = val;
+  demo.history.push({ s: 'Sold', ts: nowISO() });
+
+  saveData();
+  closeModal('modal-sold');
+  render();
+  fireConfetti();
+  showToast(`🏆 ${demo.lead} — SOLD! $${val.toLocaleString('en-AU')}`);
+
+  // Weekly target celebration check
+  const wd = demos.filter(d => inWeek(d.dateAdded, weekOffset));
+  if (wd.length === TARGET_WEEK) setTimeout(fireWeekCelebration, 1200);
+}
+
+function patchDealValue(id, val) {
+  const demo = demos.find(d => d.id === id);
+  if (demo) { demo.dealValue = parseFloat(val) || 0; saveData(); renderSoldBoard(demos.filter(d => inWeek(d.dateAdded, weekOffset))); }
+}
+
+function toggleFollowUp(id) {
+  const demo = demos.find(d => d.id === id);
+  if (demo) { demo.followUpSent = !demo.followUpSent; saveData(); render(); }
+}
+
+function openRebookModal(id) {
+  document.getElementById('rb-id').value   = id;
+  document.getElementById('rb-date').value = '';
+  document.getElementById('rb-time').value = '';
+  openModal('modal-rebook');
+}
+
+function confirmRebook() {
+  const id   = document.getElementById('rb-id').value;
+  const date = document.getElementById('rb-date').value;
+  const time = document.getElementById('rb-time').value;
+  if (!date) { alert('Please enter a new demo date.'); return; }
+
+  const orig = demos.find(d => d.id === id);
+  if (!orig) return;
+
+  orig.reBooked    = true;
+  orig.rebookedId  = uid();
+
+  demos.push({
+    id:           orig.rebookedId,
+    dateAdded:    todayStr(),
+    lead:         orig.lead,
+    business:     orig.business,
+    phone:        orig.phone,
+    source:       orig.source,
+    demoDate:     date,
+    demoTime:     time,
+    notes:        `Re-booked from no-show on ${fmtD(orig.noShowDate)}`,
+    status:       'Booked',
+    assignedTo:   'John',
+    dealValue:    null,
+    followUpSent: false,
+    reBooked:     false,
+    rebookedId:   null,
+    noShowDate:   null,
+    history:      [{ s: 'Booked', ts: nowISO() }],
+  });
+
+  saveData();
+  closeModal('modal-rebook');
+  render();
+  showToast(`${orig.lead} re-booked for ${fmtD(date)}`);
+}
+
+/* ════════════════════════════ DEMO MODAL ════════════════════════════════════ */
+function openAddModal() {
+  document.getElementById('f-date').value  = todayStr();
+  document.getElementById('f-lead').value  = '';
+  document.getElementById('f-biz').value   = '';
+  document.getElementById('f-phone').value = '';
+  document.getElementById('f-src').value   = 'Cold Call';
+  document.getElementById('f-ddate').value = '';
+  document.getElementById('f-dtime').value = '';
+  document.getElementById('f-notes').value = '';
+  openModal('modal-add');
+  setTimeout(() => document.getElementById('f-lead').focus(), 80);
+}
+
+function saveDemo() {
+  const date = document.getElementById('f-date').value;
+  const lead = document.getElementById('f-lead').value.trim();
+  if (!date || !lead) { alert('Date Added and Lead Name are required.'); return; }
+
+  const demo = {
+    id:           uid(),
+    dateAdded:    date,
+    lead,
+    business:     document.getElementById('f-biz').value.trim(),
+    phone:        document.getElementById('f-phone').value.trim(),
+    source:       document.getElementById('f-src').value,
+    demoDate:     document.getElementById('f-ddate').value,
+    demoTime:     document.getElementById('f-dtime').value,
+    notes:        document.getElementById('f-notes').value.trim(),
+    status:       'Booked',
+    assignedTo:   'John',
+    dealValue:    null,
+    followUpSent: false,
+    reBooked:     false,
+    rebookedId:   null,
+    noShowDate:   null,
+    history:      [{ s: 'Booked', ts: nowISO() }],
+  };
+
+  demos.push(demo);
+  saveData();
+  closeModal('modal-add');
+  render();
+  showToast(`${lead} added — assigned to John`);
+
+  // Celebrate hitting 15
+  const wd = demos.filter(d => inWeek(d.dateAdded, weekOffset));
+  if (wd.length === TARGET_WEEK) setTimeout(fireWeekCelebration, 400);
+}
+
+/* ════════════════════════════ VIEW / NAV ════════════════════════════════════ */
+function setView(v) {
+  currentView = v;
+  document.getElementById('view-james').classList.toggle('hidden', v !== 'james');
+  document.getElementById('view-john').classList.toggle('hidden', v !== 'john');
+  document.getElementById('btn-james').classList.toggle('active', v === 'james');
+  document.getElementById('btn-john').classList.toggle('active', v === 'john');
+  document.getElementById('hdrAddBtn').classList.toggle('hidden', v !== 'james');
+  const fab = document.getElementById('fab');
+  v === 'james' ? fab.classList.add('vis') : fab.classList.remove('vis');
+  render();
+}
+
+function shiftWeek(dir) { weekOffset += dir; render(); }
+
+/* ════════════════════════════ MODAL HELPERS ═════════════════════════════════ */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (id === 'modal-sold') render(); // reset any pending select
+}
+
+['modal-add','modal-rebook','modal-sold'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === document.getElementById(id)) closeModal(id);
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') ['modal-add','modal-rebook','modal-sold'].forEach(closeModal);
+});
+
+/* ════════════════════════════ CSV EXPORT ════════════════════════════════════ */
+function exportCSV() {
+  const wd = demos.filter(d => inWeek(d.dateAdded, weekOffset));
+  const { mon, fri } = weekRange(weekOffset);
+  const ff = d => `${d.getDate()}-${d.toLocaleString('en-AU',{month:'short'})}-${d.getFullYear()}`;
+  const hdrs = ['Date Added','Lead Name','Business','Phone','Source','Demo Date','Demo Time','Status','Assigned To','Deal Value','Notes'];
+  const rows = wd.map(d => [
+    fmtD(d.dateAdded), d.lead, d.business, d.phone, d.source,
+    fmtD(d.demoDate), d.demoTime, d.status, d.assignedTo,
+    d.dealValue ? '$'+d.dealValue : '', d.notes,
+  ]);
+  const csv  = [hdrs,...rows].map(r => r.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `TRG-Demos-${ff(mon)}-to-${ff(fri)}.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+/* ════════════════════════════ ANIMATIONS ════════════════════════════════════ */
+function countUp(el, target, duration = 550) {
+  if (!el) return;
+  const from  = parseFloat(el.textContent.replace(/[^0-9.]/g,'')) || 0;
+  if (from === target) { el.textContent = target; return; }
+  const start = performance.now();
+  const tick  = (now) => {
+    const t   = Math.min(1, (now - start) / duration);
+    const ease = t < .5 ? 2*t*t : -1+(4-2*t)*t;
+    el.textContent = Math.round(from + (target - from) * ease);
+    if (t < 1) requestAnimationFrame(tick);
+    else el.textContent = target;
+  };
+  requestAnimationFrame(tick);
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function fireConfetti() {
+  const opts = { colors:['#E94560','#F0A500','#FFFFFF','#3FB950','#388BFD'] };
+  confetti({ ...opts, particleCount:120, spread:70, origin:{ y:.6 } });
+  setTimeout(() => {
+    confetti({ ...opts, particleCount:60, spread:100, angle:60,  origin:{ x:0, y:.5 } });
+    confetti({ ...opts, particleCount:60, spread:100, angle:120, origin:{ x:1, y:.5 } });
+  }, 300);
+}
+
+function fireWeekCelebration() {
+  const end = Date.now() + 2500;
+  const frame = () => {
+    confetti({ particleCount:5, angle:60,  spread:55, origin:{x:0}, colors:['#E94560','#F0A500','#fff'] });
+    confetti({ particleCount:5, angle:120, spread:55, origin:{x:1}, colors:['#3FB950','#388BFD','#fff'] });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  };
+  frame();
+  showToast('🎯 15 demos hit! Target smashed this week!');
+}
+
+/* ════════════════════════════ BADGE HELPER ══════════════════════════════════ */
+function badgeHtml(status) {
+  const cls = {
+    'Booked':'b-booked','Confirmed':'b-confirmed','Completed':'b-completed',
+    'No Show':'b-no-show','Sold':'b-sold','Cancelled':'b-cancelled',
+  };
+  const icon = status === 'Sold' ? '★ ' : '';
+  return `<span class="badge ${cls[status]||'b-booked'}">${icon}${status}</span>`;
+}
+
+/* ════════════════════════════ INIT ══════════════════════════════════════════ */
+loadData();
+setView('james');
+</script>
+</body>
+</html>
