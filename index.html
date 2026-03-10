@@ -24,6 +24,7 @@
       --amber:    #D29922;
       --red:      #F85149;
       --gold:     #F0A500;
+      --purple:   #7C3AED;
       --r: 12px;
       --shadow: 0 4px 28px rgba(0,0,0,.45);
     }
@@ -224,7 +225,9 @@
     tr.r-no-show   { background: rgba(248,81,73,.07); }
     tr.r-no-show:hover { background: rgba(248,81,73,.11); }
     tr.r-cancelled { opacity: .45; }
-    tr.r-completed { background: rgba(255,255,255,.025); }
+    tr.r-completed   { background: rgba(255,255,255,.025); }
+    tr.r-2nd-booking { background: rgba(124,58,237,.07); }
+    tr.r-2nd-booking:hover { background: rgba(124,58,237,.12); }
 
     /* Status badges */
     .badge {
@@ -238,7 +241,8 @@
     .b-completed { background: rgba(255,255,255,.08); color: var(--muted); }
     .b-no-show   { background: rgba(248,81,73,.2); color: #FF7B72; }
     .b-sold      { background: rgba(240,165,0,.22); color: #F0A500; }
-    .b-cancelled { background: rgba(255,255,255,.05); color: #484F58; }
+    .b-cancelled   { background: rgba(255,255,255,.05); color: #484F58; }
+    .b-2nd-booking { background: rgba(124,58,237,.2); color: #A78BFA; }
 
     /* John's status dropdown */
     .status-sel {
@@ -365,6 +369,7 @@
     .amber  { color: var(--amber); }
     .red    { color: var(--red); }
     .gold   { color: var(--gold); }
+    .purple { color: var(--purple); }
     .muted  { color: var(--muted); }
     .bold   { font-weight: 700; }
     .strike { text-decoration: line-through; }
@@ -522,9 +527,10 @@
   <div id="view-john" class="hidden fade-in">
 
     <!-- John scorecard -->
-    <div class="tiles john-tiles" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
+    <div class="tiles john-tiles" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px">
       <div class="tile"><div class="tile-val" id="jnQ">0</div><div class="tile-lbl">In Queue</div></div>
       <div class="tile"><div class="tile-val green" id="jnC">0</div><div class="tile-lbl">Confirmed</div></div>
+      <div class="tile"><div class="tile-val purple" id="jn2B">0</div><div class="tile-lbl">2nd Booking</div></div>
       <div class="tile"><div class="tile-val" id="jnSR">—</div><div class="tile-lbl">Show Rate</div></div>
       <div class="tile"><div class="tile-val gold" id="jnSold">0</div><div class="tile-lbl">Sold This Week</div></div>
       <div class="tile"><div class="tile-val accent" id="jnConv">—</div><div class="tile-lbl">Conversion Rate</div></div>
@@ -699,7 +705,7 @@
 const TARGET_WEEK  = 15;
 const TARGET_DAY   = 3;
 const SOURCES      = ['Cold Call','Meta Ad','Referral','Other'];
-const JOHN_STATS   = ['Confirmed','Completed','No Show','Sold','Cancelled'];
+const JOHN_STATS   = ['Confirmed','2nd Booking','Completed','No Show','Sold','Cancelled'];
 
 /* ══════════════════════════════ STATE ══════════════════════════════════════ */
 let currentView = 'james';
@@ -956,17 +962,19 @@ function renderJohn(wd) {
 }
 
 function renderJohnScorecard(wd) {
-  const queue     = wd.filter(d => ['Booked','Confirmed'].includes(d.status)).length;
-  const confirmed = wd.filter(d => d.status === 'Confirmed').length;
-  const shown     = wd.filter(d => ['Completed','Sold'].includes(d.status)).length;
-  const noShow    = wd.filter(d => d.status === 'No Show').length;
-  const appeared  = shown + noShow;
-  const sold      = wd.filter(d => d.status === 'Sold').length;
-  const showRate  = appeared > 0 ? Math.round((shown / appeared) * 100) : null;
-  const convRate  = appeared > 0 ? Math.round((sold  / appeared) * 100) : null;
+  const queue      = wd.filter(d => ['Booked','Confirmed','2nd Booking'].includes(d.status)).length;
+  const confirmed  = wd.filter(d => d.status === 'Confirmed').length;
+  const secondBook = wd.filter(d => d.status === '2nd Booking').length;
+  const shown      = wd.filter(d => ['Completed','Sold'].includes(d.status)).length;
+  const noShow     = wd.filter(d => d.status === 'No Show').length;
+  const appeared   = shown + noShow;
+  const sold       = wd.filter(d => d.status === 'Sold').length;
+  const showRate   = appeared > 0 ? Math.round((shown / appeared) * 100) : null;
+  const convRate   = appeared > 0 ? Math.round((sold  / appeared) * 100) : null;
 
   countUp(document.getElementById('jnQ'),    queue);
   countUp(document.getElementById('jnC'),    confirmed);
+  countUp(document.getElementById('jn2B'),   secondBook);
   document.getElementById('jnSR').textContent   = showRate  !== null ? showRate  + '%' : '—';
   countUp(document.getElementById('jnSold'), sold);
   document.getElementById('jnConv').textContent = convRate  !== null ? convRate  + '%' : '—';
@@ -975,7 +983,7 @@ function renderJohnScorecard(wd) {
 function renderDemoQueue(wd) {
   const tbody = document.getElementById('jnQBody');
   const q     = wd
-    .filter(d => ['Booked','Confirmed'].includes(d.status))
+    .filter(d => ['Booked','Confirmed','2nd Booking'].includes(d.status))
     .sort((a,b) => {
       const da = (a.demoDate || '9999') + 'T' + (a.demoTime || '00:00');
       const db = (b.demoDate || '9999') + 'T' + (b.demoTime || '00:00');
@@ -1384,10 +1392,10 @@ function fireWeekCelebration() {
 /* ════════════════════════════ BADGE HELPER ══════════════════════════════════ */
 function badgeHtml(status) {
   const cls = {
-    'Booked':'b-booked','Confirmed':'b-confirmed','Completed':'b-completed',
-    'No Show':'b-no-show','Sold':'b-sold','Cancelled':'b-cancelled',
+    'Booked':'b-booked','Confirmed':'b-confirmed','2nd Booking':'b-2nd-booking',
+    'Completed':'b-completed','No Show':'b-no-show','Sold':'b-sold','Cancelled':'b-cancelled',
   };
-  const icon = status === 'Sold' ? '★ ' : '';
+  const icon = status === 'Sold' ? '★ ' : status === '2nd Booking' ? '🔄 ' : '';
   return `<span class="badge ${cls[status]||'b-booked'}">${icon}${status}</span>`;
 }
 
