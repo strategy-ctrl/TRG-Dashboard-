@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- TRG Demo Booking Dashboard v2 — James/John dual-role, dark theme, localStorage -->
+<!-- TRG Demo Booking Dashboard v2 — James/John dual-role, dark theme, Firebase Realtime Database -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -402,6 +402,33 @@
       header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .fab, .btn-primary, .overlay { display: none !important; }
     }
+
+    /* ── Spinner ──────────────────────────────────────────────── */
+    #spinner {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+    }
+    .spin-ring {
+      width: 44px; height: 44px;
+      border: 3px solid rgba(255,255,255,.08);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #spinner p { color: var(--muted); font-size: 13px; }
+
+    /* ── Connection badge ────────────────────────────────────── */
+    .conn-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: .4px;
+      padding: 3px 9px; border-radius: 20px; flex-shrink: 0;
+      background: rgba(255,255,255,.07); color: var(--muted);
+      transition: background .3s, color .3s;
+    }
+    .conn-badge.live    { background: rgba(63,185,80,.18);  color: #56D364; }
+    .conn-badge.offline { background: rgba(248,81,73,.2);   color: #FF7B72; }
   </style>
 </head>
 <body>
@@ -409,6 +436,7 @@
 <!-- ════════════════════════════ HEADER ═════════════════════════════════════ -->
 <header>
   <div class="logo">TRG &nbsp;<em>DEMO TRACKER</em></div>
+  <span class="conn-badge" id="connBadge">⏳ Connecting…</span>
 
   <div class="view-toggle">
     <button class="vbtn active" id="btn-james" onclick="setView('james')">📞&nbsp; JAMES</button>
@@ -596,6 +624,12 @@
 
 </main>
 
+<!-- Spinner -->
+<div id="spinner">
+  <div class="spin-ring"></div>
+  <p>Loading live data…</p>
+</div>
+
 <!-- FAB -->
 <button class="fab" id="fab" onclick="openAddModal()" title="Add New Demo">+</button>
 
@@ -698,6 +732,8 @@
 </div>
 
 <!-- ════════════════════════════ SCRIPTS ════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script>
@@ -714,65 +750,43 @@ let demos       = [];
 let barChart    = null;
 let pieChart    = null;
 
-/* ══════════════════════════════ PERSISTENCE ════════════════════════════════ */
-function loadData() {
-  const raw = localStorage.getItem('trg-v2');
-  if (raw) { try { demos = JSON.parse(raw); } catch { demos = []; } }
-  else { demos = seedData(); saveData(); }
-}
-function saveData() { localStorage.setItem('trg-v2', JSON.stringify(demos)); }
+/* ══════════════════════════════ FIREBASE ════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey:            'AIzaSyDEGs1KRP3brrs_UxXQTMgdd44f6yZxy-k',
+  authDomain:        'trg-dashboard-54df3.firebaseapp.com',
+  databaseURL:       'https://trg-dashboard-54df3-default-rtdb.firebaseio.com',
+  projectId:         'trg-dashboard-54df3',
+  storageBucket:     'trg-dashboard-54df3.firebasestorage.app',
+  messagingSenderId: '278209402454',
+  appId:             '1:278209402454:web:b4ebfb204a5f556b934df7',
+};
+firebase.initializeApp(firebaseConfig);
+const db       = firebase.database();
+const demosRef = db.ref('demos');
 
-/* ══════════════════════════════ SEED DATA ══════════════════════════════════ */
-function seedData() {
-  const mon = weekMonday(0);
-  const wd  = (n) => { const d = new Date(mon); d.setDate(d.getDate() + n); return toDateStr(d); };
-  const ts  = (n, h, m) => { const d = new Date(mon); d.setDate(d.getDate()+n); d.setHours(h,m,0,0); return d.toISOString(); };
+/* ══════════════════════════════ FIREBASE HELPERS ════════════════════════════ */
+function fbSet(demo)         { demosRef.child(demo.id).set(demo); }
+function fbPatch(id, fields) { demosRef.child(id).update(fields); }
 
-  return [
-    {
-      id: uid(), dateAdded: wd(0), lead: 'Michael Chan', business: 'Chan Constructions',
-      phone: '0412 345 678', source: 'Cold Call', demoDate: wd(2), demoTime: '10:00',
-      notes: 'Kitchen reno — warm lead, budget ~$95k', status: 'Booked', assignedTo: 'John',
-      dealValue: null, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
-      history: [{ s: 'Booked', ts: ts(0,9,15) }],
-    },
-    {
-      id: uid(), dateAdded: wd(0), lead: 'Sarah Nguyen', business: 'Nguyen Builds',
-      phone: '0435 987 654', source: 'Meta Ad', demoDate: wd(3), demoTime: '14:00',
-      notes: 'Granny flat ad — $120k budget confirmed', status: 'Confirmed', assignedTo: 'John',
-      dealValue: null, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
-      history: [{ s: 'Booked', ts: ts(0,11,0) }, { s: 'Confirmed', ts: ts(1,9,0) }],
-    },
-    {
-      id: uid(), dateAdded: wd(1), lead: 'Brad Mitchell', business: 'Mitchell Renovations',
-      phone: '0421 111 222', source: 'Referral', demoDate: wd(1), demoTime: '11:00',
-      notes: 'Referral from LFC — ready to go', status: 'Sold', assignedTo: 'John',
-      dealValue: 18500, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
-      history: [{ s: 'Booked', ts: ts(1,8,0) }, { s: 'Confirmed', ts: ts(1,9,30) }, { s: 'Sold', ts: ts(1,12,45) }],
-    },
-    {
-      id: uid(), dateAdded: wd(1), lead: 'Tony Esposito', business: 'Esposito Building Group',
-      phone: '0499 333 444', source: 'Cold Call', demoDate: wd(0), demoTime: '15:30',
-      notes: 'Commercial fit-out — may need follow-up', status: 'No Show', assignedTo: 'John',
-      dealValue: null, followUpSent: true, reBooked: false, rebookedId: null, noShowDate: wd(0),
-      history: [{ s: 'Booked', ts: ts(1,14,0) }, { s: 'No Show', ts: ts(1,16,0) }],
-    },
-    {
-      id: uid(), dateAdded: wd(2), lead: 'Karen Wells', business: 'Wells & Sons Building',
-      phone: '0455 666 777', source: 'Meta Ad', demoDate: wd(2), demoTime: '09:00',
-      notes: 'Bathroom reno + extension, very motivated', status: 'Completed', assignedTo: 'John',
-      dealValue: null, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
-      history: [{ s: 'Booked', ts: ts(2,9,0) }, { s: 'Completed', ts: ts(2,10,15) }],
-    },
-    {
-      id: uid(), dateAdded: wd(2), lead: 'David Lam', business: 'Lam Custom Homes',
-      phone: '0411 222 333', source: 'Cold Call', demoDate: wd(4), demoTime: '13:00',
-      notes: 'New 4BR home build — large project potential', status: 'Booked', assignedTo: 'John',
-      dealValue: null, followUpSent: false, reBooked: false, rebookedId: null, noShowDate: null,
-      history: [{ s: 'Booked', ts: ts(2,10,30) }],
-    },
-  ];
-}
+db.ref('.info/connected').on('value', snap => {
+  const el = document.getElementById('connBadge');
+  if (!el) return;
+  if (snap.val() === true) {
+    el.textContent = '🟢 Live';
+    el.className   = 'conn-badge live';
+  } else {
+    el.textContent = '🔴 Offline';
+    el.className   = 'conn-badge offline';
+  }
+});
+
+demosRef.on('value', snapshot => {
+  const data = snapshot.val();
+  demos = data ? Object.values(data) : [];
+  const sp = document.getElementById('spinner');
+  if (sp) sp.style.display = 'none';
+  render();
+});
 
 /* ══════════════════════════════ DATE UTILS ══════════════════════════════════ */
 function weekMonday(off) {
@@ -1162,7 +1176,7 @@ function updateStatus(id, newStatus, selectEl) {
     showToast(`Status updated: ${newStatus}`);
   }
 
-  saveData();
+  fbSet(demo);
   render();
 }
 
@@ -1176,7 +1190,7 @@ function confirmSold() {
   demo.dealValue = val;
   demo.history.push({ s: 'Sold', ts: nowISO() });
 
-  saveData();
+  fbSet(demo);
   closeModal('modal-sold');
   render();
   fireConfetti();
@@ -1189,12 +1203,12 @@ function confirmSold() {
 
 function patchDealValue(id, val) {
   const demo = demos.find(d => d.id === id);
-  if (demo) { demo.dealValue = parseFloat(val) || 0; saveData(); renderSoldBoard(demos.filter(d => inWeek(d.dateAdded, weekOffset))); }
+  if (demo) { demo.dealValue = parseFloat(val) || 0; fbPatch(id, { dealValue: demo.dealValue }); renderSoldBoard(demos.filter(d => inWeek(d.dateAdded, weekOffset))); }
 }
 
 function toggleFollowUp(id) {
   const demo = demos.find(d => d.id === id);
-  if (demo) { demo.followUpSent = !demo.followUpSent; saveData(); render(); }
+  if (demo) { demo.followUpSent = !demo.followUpSent; fbPatch(id, { followUpSent: demo.followUpSent }); render(); }
 }
 
 function openRebookModal(id) {
@@ -1216,7 +1230,7 @@ function confirmRebook() {
   orig.reBooked    = true;
   orig.rebookedId  = uid();
 
-  demos.push({
+  const newBooking = {
     id:           orig.rebookedId,
     dateAdded:    todayStr(),
     lead:         orig.lead,
@@ -1234,9 +1248,11 @@ function confirmRebook() {
     rebookedId:   null,
     noShowDate:   null,
     history:      [{ s: 'Booked', ts: nowISO() }],
-  });
+  };
 
-  saveData();
+  demos.push(newBooking);
+  fbSet(orig);
+  fbSet(newBooking);
   closeModal('modal-rebook');
   render();
   showToast(`${orig.lead} re-booked for ${fmtD(date)}`);
@@ -1282,7 +1298,7 @@ function saveDemo() {
   };
 
   demos.push(demo);
-  saveData();
+  fbSet(demo);
   closeModal('modal-add');
   render();
   showToast(`${lead} added — assigned to John`);
@@ -1400,7 +1416,8 @@ function badgeHtml(status) {
 }
 
 /* ════════════════════════════ INIT ══════════════════════════════════════════ */
-loadData();
+// Firebase real-time listener initialises data and triggers first render.
+// setView establishes correct UI state while data loads behind the spinner.
 setView('james');
 </script>
 </body>
